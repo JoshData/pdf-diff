@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw, ImageOps
 def pdftopng(pdffile, pagenumber, width=900):
     pngbytes = subprocess.check_output(["/usr/bin/pdftoppm", "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(width), "-png", pdffile])
     im = Image.open(io.BytesIO(pngbytes))
-    return im.convert("RGBA") # greyscale is required by .invert()
+    return im.convert("RGBA")
 
 # Load all of the pages named in changes.
 
@@ -20,6 +20,7 @@ for change in changes:
         pages[change["pdf"]["index"]][change["page"]["number"]] = pdftopng(change["pdf"]["file"], change["page"]["number"])
 
 # Draw red boxes around changes.
+
 for change in changes:
     if change == "*": continue # not handled yet
 
@@ -53,7 +54,7 @@ for idx in (0, 1):
     # do crop
     for pg in pages[idx]:
         im = pages[idx][pg]
-        bbox = ImageOps.invert(im.convert("L")).getbbox()
+        bbox = ImageOps.invert(im.convert("L")).getbbox() # .invert() requires a grayscale image
         vpad = int(.02*im.size[1])
         pages[idx][pg] = im.crop( (minx, max(0, bbox[1]-vpad), maxx, min(im.size[1], bbox[3]+vpad) ) )
 

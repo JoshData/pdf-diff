@@ -20,21 +20,20 @@ Installation
 	node make singlefile
 	cd ..
 
-	## for the renderer
+	# for the renderer
 
 	sudo pip3 install pillow
 
 Running
 -------
 
-	# Compute the changes.
-
-	# Unfortunately the pdf.js prints warnings on STDOUT, so we have
-	# to filter those out.
+Compute the changes (writes a JSON file):
 
 	node index.js before.pdf after.pdf | grep -v "^Warning:" > changes.json
 
-	# Render the changes.
+(Unfortunately the pdf.js library prints warnings on STDOUT, so we have to filter those out.)
+
+Render the changes (turns the PDFs + JSON file into a big PNG image):
 
 	python3 render.py < changes.json > test.png
 
