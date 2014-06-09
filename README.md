@@ -3,8 +3,10 @@ pdf-diff
 
 Finds differences between two PDF documents:
 
-1. Compares the text layers of two PDF documents and outputs the bounding boxes of changed text.
+1. Compares the text layers of two PDF documents and outputs the bounding boxes of changed text in JSON.
 2. Rasterizes the changed pages in the PDFs to a PNG and draws red outlines around changed text.
+
+![Example Image Output](example.png)
 
 Unfortunately while I started this project in node.js, I couldn't figure out how to quickly do the rendering part in node.js and so I switched to Python where I had some similar code laying around already.
 
