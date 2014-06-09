@@ -1,0 +1,20 @@
+{
+  "name": "pdf-diff",
+  "version": "0.0.0",
+  "description": "Compare two PDFs.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "pdf",
+    "diff",
+    "compare"
+  ],
+  "author": "Joshua Tauberer",
+  "license": "Public Domain",
+  "dependencies": {
+    "async": "~0.2.10",
+    "googlediff": "0.1.0"
+  }
+}
