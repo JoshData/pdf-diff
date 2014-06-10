@@ -109,12 +109,75 @@ function mark_difference(hunk_length, offset, boxes, changes) {
   }
 }
 
+function compare_text(doc1, doc2, mode, timeout) {
+  /////////////////////////////////////////////////////////////
+  // adapted from diff_match_patch.prototype.diff_linesToChars_
+  function diff_tokensToChars_(text1, text2, split_regex) {
+    var lineArray = [];
+    var lineHash = {};
+    lineArray[0] = '';
+    function munge(text) {
+      var chars = '';
+      var lineStart = 0;
+      var lineEnd = -1;
+      var lineArrayLength = lineArray.length;
+      while (lineEnd < text.length - 1) {
+        split_regex.lastIndex = lineStart;
+        var m = split_regex.exec(text);
+        if (m)
+          lineEnd = m.index;
+        else
+          lineEnd = text.length - 1;
+        var line = text.substring(lineStart, lineEnd + 1);
+        lineStart = lineEnd + 1;
+        if (lineHash.hasOwnProperty ? lineHash.hasOwnProperty(line) :
+            (lineHash[line] !== undefined)) {
+          chars += String.fromCharCode(lineHash[line]);
+        } else {
+          chars += String.fromCharCode(lineArrayLength);
+          lineHash[line] = lineArrayLength;
+          lineArray[lineArrayLength++] = line;
+        }
+      }
+      return chars;
+    }
+
+    var chars1 = munge(text1);
+    var chars2 = munge(text2);
+    return {chars1: chars1, chars2: chars2, lineArray: lineArray};
+  }
+  /////////////////////////////////////////////////////////////
+
+  // handle words or lines mode
+  var token_state = null;
+  // if mode is null or "chars", do nothing
+  if (mode == "words") token_state = diff_tokensToChars_(doc1, doc2, /[\W]/g);
+  if (mode == "lines") token_state = diff_tokensToChars_(doc1, doc2, /\n/g);
+  var t1 = doc1;
+  var t2 = doc2;
+  if (token_state) { t1 = token_state.chars1; t2 = token_state.chars2; }  
+
+  // perform the diff
+  var dmp = new diff_match_patch();
+  dmp.Diff_Timeout = timeout;
+  var d = dmp.diff_main(t1, t2);
+
+  // handle words or lines mode
+  if (token_state) dmp.diff_charsToLines_(d, token_state.lineArray);
+
+  return d;
+}
 
 function compare_documents(docs) {
   // Perform a comparison over the serialized text using Google's
-  // Diff Match Patch library.
-  var dmp = new diff_match_patch();
-  var d = dmp.diff_main(docs[0].alltext, docs[1].alltext);
+  // Diff Match Patch library. First try a character-by-character
+  // diff. If it doesn't produce a useful diff within 5 seconds,
+  // fall back to a word-by-word diff which scales much better but
+  // produces less clean diffs without some post-processing.
+  var d;
+  d = compare_text(docs[0].alltext, docs[1].alltext, "chars", 5);
+  if (d.length <= 4)
+    d = compare_text(docs[0].alltext, docs[1].alltext, "words", 0); /* no timeout */
 
   // Process each diff hunk one by one and look at their corresponding
   // text boxes in the original PDFs.
@@ -151,7 +214,7 @@ function compare_documents(docs) {
 
       if (hunk_text.length > 0)
         mark_difference(hunk_text.length, hunk_offset, docs[idx].boxes, changes);
-      
+
       offsets[idx] += d[i][1].length;
 
       // Although the text doesn't exist in the right document, we want to
