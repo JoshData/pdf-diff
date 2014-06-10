@@ -49,24 +49,35 @@ function load_document(index, callback) {
         var textlength = 0;
         results.forEach(function(page) {
           page.text.items.forEach(function (textItem) {
-            if (textItem.str.length == 0) return; // not sure if it occurs, but this would cause trouble
+            // Normalize the string to remove whitespace padding & normalize internal whitespace.
+            var normalized_str = textItem.str;
+            normalized_str = normalized_str.replace(/^\s+/, "");
+            normalized_str = normalized_str.replace(/\s+$/, "");
+            normalized_str = normalized_str.replace(/\s+/, " ");
 
-            // per pdfjs's examples/text-only/pdf2svg.js
+            // ensure that a space separates box text so words in adjacent boxes don't get shmushed together
+            normalized_str += " ";
+
+            // Drop any text boxes that are just whitespace.
+            if (normalized_str.length == 0) return;
+
+            // Per pdfjs's examples/text-only/pdf2svg.js, compute the coordinates this way.
             var tx = PDFJS.Util.transform(
               PDFJS.Util.transform(page.viewport.transform, textItem.transform),
               [1, 0, 0, -1, 0, 0]);
 
-            // record this text box
+            // Record this text box. Note that since the y axis in a PDF goes up but hackers,
+            // are used to the opposite, move the y coordinate to the top of the box.
             boxes.push({
               pdf: { index: index, file: process.argv[index+2] },
               page: { number: page.page, width: page.viewport.width, height: page.viewport.height },
-              x: tx[4], y: tx[5], width: textItem.width, height: textItem.height,
-              text: textItem.str,
+              x: tx[4], y: tx[5]-textItem.height, width: textItem.width, height: textItem.height,
+              text: normalized_str,
               startIndex: textlength });
 
             // add to the serialized text and increment the current position
-            text.push(textItem.str);
-            textlength += textItem.str.length;
+            text.push(normalized_str);
+            textlength += normalized_str.length;
           });
         })
 
@@ -99,42 +110,57 @@ function mark_difference(hunk_length, offset, boxes, changes) {
 }
 
 
-function compare_documents(doc1, doc2) {
+function compare_documents(docs) {
   // Perform a comparison over the serialized text using Google's
   // Diff Match Patch library.
   var dmp = new diff_match_patch();
-  var d = dmp.diff_main(doc1.alltext, doc2.alltext);
+  var d = dmp.diff_main(docs[0].alltext, docs[1].alltext);
 
   // Process each diff hunk one by one and look at their corresponding
   // text boxes in the original PDFs.
-  var left_offset = 0;
-  var right_offset = 0;
+  var offsets = [0, 0];
   var changes = [];
   for (var i = 0; i < d.length; i++) {
     if (d[i][0] == 0) {
       // This hunk represents a region in the two text documents that are
       // in common. So nothing to process but advance the counters.
-      left_offset += d[i][1].length;
-      right_offset += d[i][1].length;
+      offsets[0] += d[i][1].length;
+      offsets[1] += d[i][1].length;
 
       // Put a marker in the changes so we can line up equivalent parts
       // later.
       if (changes.length > 0 && changes[changes.length-1] !== '*')
         changes.push("*");
 
-    } else if (d[i][0] == -1) {
-      // This hunk represents a region of text only in the left document
-      // that is d[i][1].length characters long.
-      mark_difference(d[i][1].length, left_offset, doc1.boxes, changes);
-      left_offset += d[i][1].length;
+    } else {
+      // This hunk represents a region of text only in the left (d[i][0] == -1)
+      // or right (d[i][0] == +1) document. The change is d[i][1].length chars long.
+      var idx = (d[i][0] == -1 ? 0 : 1);
 
-    } else if (d[i][0] == 1) {
-      // This hunk represents a region of text only in the right document
-      // that is d[i][1].length characters long.
-      mark_difference(d[i][1].length, right_offset, doc2.boxes, changes);
-      right_offset += d[i][1].length;
+      // Don't cause a box to be marked as a change only because of leading or
+      // trailing whitespace.
+      var hunk_offset = offsets[idx];
+      var hunk_text = d[i][1];
+      while (/^\s/.exec(hunk_text)) {
+        hunk_offset++;
+        hunk_text = hunk_text.substring(1);
+      }
+      while (/\s$/.exec(hunk_text)) {
+        hunk_text = hunk_text.substring(0, hunk_text.length-1);
+      }
+
+      if (hunk_text.length > 0)
+        mark_difference(hunk_text.length, hunk_offset, docs[idx].boxes, changes);
+      
+      offsets[idx] += d[i][1].length;
+
+      // Although the text doesn't exist in the right document, we want to
+      // mark the position where that text may have been to indicate an
+      // insertion.
+      var idx2 = 1 - idx;
+      mark_difference(1, offsets[idx2]-1, docs[idx2].boxes, changes);
+      mark_difference(0, offsets[idx2]+0, docs[idx2].boxes, changes);
     }
-
   }
 
   // Remove any final asterisk.
@@ -148,7 +174,7 @@ function load_documents() {
   // Load the contents of the two PDFs.
   load_document(0, function(doc1) {
     load_document(1, function(doc2) {
-      var changes = compare_documents(doc1, doc2);
+      var changes = compare_documents([doc1, doc2]);
       console.log(JSON.stringify(changes, null, 4));
     });
   });

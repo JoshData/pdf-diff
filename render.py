@@ -30,7 +30,7 @@ for change in changes:
         change["x"] * im.size[0]/change["page"]["width"],
         change["y"] * im.size[1]/change["page"]["height"],
         (change["x"]+change["width"]) * im.size[0]/change["page"]["width"],
-        (change["y"]-change["height"]) * im.size[1]/change["page"]["height"],
+        (change["y"]+change["height"]) * im.size[1]/change["page"]["height"],
         )
 
     draw = ImageDraw.Draw(im)
@@ -49,8 +49,9 @@ for idx in (0, 1):
         minx = min(bbox[0], minx) if minx else bbox[0]
         maxx = min(bbox[2], maxx) if maxx else bbox[2]
         width = pdf.size[0]
-    minx = max(0, minx-int(.02*width)) # add back some margins
-    maxx = min(width, maxx+int(.02*width))
+    if width != None:
+        minx = max(0, minx-int(.02*width)) # add back some margins
+        maxx = min(width, maxx+int(.02*width))
     # do crop
     for pg in pages[idx]:
         im = pages[idx][pg]
@@ -72,17 +73,18 @@ for idx in (0, 1):
 
 # Paste in the page.
 img = Image.new("RGBA", (sum(width), height))
+draw = ImageDraw.Draw(img)
 for idx in (0, 1):
     y = 0
     for pg in sorted(pages[idx]):
         pgimg = pages[idx][pg]
         img.paste(pgimg, (idx * width[0], y))
+        draw.line( (0 if idx == 0 else width[0], y, sum(width[0:idx+1]), y), fill="black")
         y += pgimg.size[1]
 
 # Draw a vertical line between the two sides.
-
-draw = ImageDraw.Draw(img)
 draw.line( (width[0], 0, width[0], height), fill="black")
+
 del draw
 
 # Write it out.
