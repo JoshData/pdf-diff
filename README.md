@@ -8,12 +8,32 @@ Finds differences between two PDF documents:
 
 ![Example Image Output](example.png)
 
-Unfortunately while I started this project in node.js, I couldn't figure out how to quickly do the rendering part in node.js and so I switched to Python where I had some similar code laying around already.
+The script is written in Python 3, and it relies on the `pdftotext` program.
 
 Installation
 ------------
 
-	# for the comparison tool
+	sudo pip3 install pillow lxml
+
+	# get my Python extension module for the Google Diff Match Patch library
+	# so we can compute differences in text very quickly
+	git clone --recursive https://github.com/JoshData/diff_match_patch-python
+	cd diff_match_patch-python
+	python3 setup.py build
+	sudo python3 setup.py install
+
+Running
+-------
+
+Turn two PDFs into one large PNG image showing the differences:
+
+	python3 pdf-diff.py before.pdf after.pdf > test.png
+
+
+Node Version
+------------
+
+There's also a node.js version for computing the changes that uses Mozilla's pdf.js instead of `pdftotext`. Getting pdf.js to work in node.js isn't straightforward:
 
 	npm install
 
@@ -22,21 +42,14 @@ Installation
 	node make singlefile
 	cd ..
 
-	# for the renderer
-
-	sudo pip3 install pillow
-
-Running
--------
-
 Compute the changes (writes a JSON file):
 
 	node index.js before.pdf after.pdf | grep -v "^Warning:" > changes.json
 
 (Unfortunately the pdf.js library prints warnings on STDOUT, so we have to filter those out.)
 
-Render the changes (turns the PDFs + JSON file into a big PNG image):
+Render the changes:
 
-	python3 render.py < changes.json > test.png
+	python3 pdf-diff.py --changes < changes.json > test.png
 
-
+`pdftotext` gives bounding boxes for each word in the document while pdf.js only gives bounding boxes for text runs, so the granularity is not as good.
