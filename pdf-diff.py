@@ -26,6 +26,7 @@ def serialize_pdf(i, fn):
         # that would be important.
         normalized_text = normalized_text.strip() + " "
 
+        run["text"] = normalized_text
         run["startIndex"] = textlength
         run["textLength"] = len(normalized_text)
         boxes.append(run)
@@ -38,6 +39,7 @@ def serialize_pdf(i, fn):
 def pdf_to_bboxes(pdf_index, fn):
     # Get the bounding boxes of text runs in the PDF.
     # Each text run is returned as a dict.
+    box_index = 0
     pdfdict = {
         "index": pdf_index,
         "file": fn,
@@ -52,6 +54,7 @@ def pdf_to_bboxes(pdf_index, fn):
         }
         for word in page.findall("{http://www.w3.org/1999/xhtml}word"):
             yield {
+                "index": box_index,
                 "pdf": pdfdict,
                 "page": pagedict,
                 "x": float(word.get("xMin")),
@@ -60,6 +63,7 @@ def pdf_to_bboxes(pdf_index, fn):
                 "height": float(word.get("yMax"))-float(word.get("yMin")),
                 "text": word.text,
                 }
+            box_index += 1
 
 def perform_diff(doc1text, doc2text):
     import diff_match_patch
@@ -124,15 +128,16 @@ def mark_difference(hunk_length, offset, boxes, changes):
   # so even though not all of the text in the box might be changed we'll
   # mark the whole box as changed.
   while len(boxes) > 0 and boxes[0]["startIndex"] < offset + hunk_length:
-    # Mark this box as changed.
-    changes.append(boxes[0])
-
-    # Discard box. Now that we know it's changed, there's no reason to
-    # hold onto it. It can't be marked as changed twice.
-    boxes.pop(0)
+    # Mark this box as changed. Discard the box. Now that we know it's changed,
+    # there's no reason to hold onto it. It can't be marked as changed twice.
+    changes.append(boxes.pop(0))
 
 # Turns a JSON object of PDF changes into a PNG and writes it to stream.
 def render_changes(changes, stream):
+    # Merge sequential boxes to avoid sequential disjoint rectangles.
+    
+    changes = simplify_changes(changes)
+
     # Load all of the pages named in changes.
 
     pages = [{}, {}]
@@ -212,6 +217,27 @@ def render_changes(changes, stream):
     # Write it out.
 
     img.save(stream, "PNG")
+
+
+def simplify_changes(boxes):
+    # Combine changed boxes when they were sequential in the input.
+    # Our bounding boxes may be on a word-by-word basis, which means
+    # neighboring boxes will lead to discontiguous rectangles even
+    # though they are probably the same semantic change.
+    changes = []
+    for b in boxes:
+        if len(changes) > 0 and changes[-1] != "*" and b != "*" \
+            and changes[-1]["pdf"] == b["pdf"] \
+            and changes[-1]["page"] == b["page"] \
+            and changes[-1]["index"]+1 == b["index"] \
+            and changes[-1]["y"] == b["y"] \
+            and changes[-1]["height"] == b["height"]:
+            changes[-1]["width"] = b["x"]+b["width"] - changes[-1]["x"]
+            changes[-1]["text"] += b["text"]
+            changes[-1]["index"] += 1 # so that in the next iteration we can expand it again
+            continue
+        changes.append(b)
+    return changes
 
 # Rasterizes a page of a PDF.
 def pdftopng(pdffile, pagenumber, width=900):
