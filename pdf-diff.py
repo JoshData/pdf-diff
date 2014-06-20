@@ -142,6 +142,25 @@ def render_changes(changes, stream):
 
     pages = make_pages_images(changes)
 
+    # Convert the box coordinates (PDF coordinates) into image coordinates.
+    # Then set change["page"] = change["page"]["number"] so that we don't
+    # share the page object between changes (since we'll be rewriting page
+    # numbers).
+    for change in changes:
+        if change == "*": continue
+        im = pages[change["pdf"]["index"]][change["page"]["number"]]
+        change["x"] *= im.size[0]/change["page"]["width"]
+        change["y"] *= im.size[1]/change["page"]["height"]
+        change["width"] *= im.size[0]/change["page"]["width"]
+        change["height"] *= im.size[1]/change["page"]["height"]
+        change["page"] = change["page"]["number"]
+
+    # To facilitate seeing how two corresponding pages align, we will
+    # break up pages into sub-page images and insert whitespace between
+    # them.
+
+    page_groups = realign_pages(pages, changes)
+
     # Draw red rectangles.
 
     draw_red_boxes(changes, pages)
@@ -149,11 +168,11 @@ def render_changes(changes, stream):
     # Zealous crop to make output nicer. We do this after
     # drawing rectangles so that we don't mess up coordinates.
 
-    zealous_crop(pages)
+    zealous_crop(page_groups)
 
     # Stack all of the changed pages into a final PDF.
 
-    img = stack_pages(pages)
+    img = stack_pages(page_groups)
 
     # Write it out.
 
@@ -170,26 +189,90 @@ def make_pages_images(changes):
             pages[pdf_index][pdf_page] = pdftopng(change["pdf"]["file"], pdf_page)
     return pages
 
+def realign_pages(pages, changes):
+    # Split pages into sub-page images at locations of asterisks
+    # in the changes where no boxes will cross the split point.
+    for pdf in (0, 1):
+        for page in list(pages[pdf]): # clone before modifying
+            # Re-do all of the page "numbers" to be a tuple of
+            # (page, split).
+            split_index = 0
+            pg = pages[pdf][page]
+            del pages[pdf][page]
+            pages[pdf][(page, split_index)] = pg
+            for box in changes:
+                if box != "*" and box["pdf"]["index"] == pdf and box["page"] == page:
+                    box["page"] = (page, 0)
+
+            # Look for places to split.
+            for i, box in enumerate(changes):
+                if box != "*": continue
+
+                # This is a "*" marker, indicating this is a place where the left
+                # and right pages line up. Get the lowest y coordinate of a change
+                # above this point and the highest y coordinate of a change after
+                # this point. If there's no overlap, we can split the PDF here.
+                try:
+                    y1 = max(b["y"]+b["height"] for j, b in enumerate(changes)
+                        if j < i and b != "*" and b["pdf"]["index"] == pdf and b["page"] == (page, split_index))
+                    y2 = min(b["y"] for j, b in enumerate(changes)
+                        if j > i and b != "*" and b["pdf"]["index"] == pdf and b["page"] == (page, split_index))
+                except ValueError:
+                    # Nothing either before or after this point, so no need to split.
+                    continue
+                if y1+1 >= y2:
+                    # This is not a good place to split the page.
+                    continue
+
+                # Split the PDF page between the bottom of the previous box and
+                # the top of the next box.
+                split_coord = int(round((y1+y2)/2))
+
+                # Make a new image for the next split-off part.
+                im = pages[pdf][(page, split_index)]
+                pages[pdf][(page, split_index)] = im.crop([0, 0, im.size[0], split_coord ])
+                pages[pdf][(page, split_index+1)] = im.crop([0, split_coord, im.size[0], im.size[1] ])
+
+                # Re-do all of the coordinates of boxes after the split point:
+                # map them to the newly split-off part.
+                for j, b in enumerate(changes):
+                    if j > i and b != "*" and b["pdf"]["index"] == pdf and b["page"] == (page, split_index):
+                        b["page"] = (page, split_index+1)
+                        b["y"] -= split_coord
+                split_index += 1
+
+    # Re-group the pages by where we made a split on both sides.
+    page_groups = [({}, {})]
+    for i, box in enumerate(changes):
+        if box != "*":
+            page_groups[-1][ box["pdf"]["index"] ][ box["page"] ] = pages[box["pdf"]["index"]][box["page"]]
+        else:
+            # Did we split at this location?
+            pages_before = set((b["pdf"]["index"], b["page"]) for j, b in enumerate(changes) if j < i and b != "*")
+            pages_after = set((b["pdf"]["index"], b["page"]) for j, b in enumerate(changes) if j > i and b != "*")
+            if len(pages_before & pages_after) == 0:
+                # no page is on both sides of this asterisk, so start a new group
+                page_groups.append( ({}, {}) )
+    return page_groups
+
 def draw_red_boxes(changes, pages):
     # Draw red boxes around changes.
 
     for change in changes:
         if change == "*": continue # not handled yet
 
-        im = pages[change["pdf"]["index"]][change["page"]["number"]]
+        im = pages[change["pdf"]["index"]][change["page"]]
 
         coords = (
-            change["x"] * im.size[0]/change["page"]["width"],
-            change["y"] * im.size[1]/change["page"]["height"],
-            (change["x"]+change["width"]) * im.size[0]/change["page"]["width"],
-            (change["y"]+change["height"]) * im.size[1]/change["page"]["height"],
+            change["x"], change["y"],
+            (change["x"]+change["width"]), (change["y"]+change["height"]),
             )
 
         draw = ImageDraw.Draw(im)
         draw.rectangle(coords, outline="red")
         del draw
 
-def zealous_crop(pages):
+def zealous_crop(page_groups):
     # Zealous crop all of the pages. Vertical margins can be cropped
     # however, but be sure to crop all pages the same horizontally.
     for idx in (0, 1):
@@ -197,42 +280,59 @@ def zealous_crop(pages):
         minx = None
         maxx = None
         width = None
-        for pdf in pages[idx].values():
-            bbox = ImageOps.invert(pdf.convert("L")).getbbox()
-            minx = min(bbox[0], minx) if minx else bbox[0]
-            maxx = min(bbox[2], maxx) if maxx else bbox[2]
-            width = pdf.size[0]
-        if width != None:
-            minx = max(0, minx-int(.02*width)) # add back some margins
-            maxx = min(width, maxx+int(.02*width))
-        # do crop
-        for pg in pages[idx]:
-            im = pages[idx][pg]
-            bbox = ImageOps.invert(im.convert("L")).getbbox() # .invert() requires a grayscale image
-            vpad = int(.02*im.size[1])
-            pages[idx][pg] = im.crop( (minx, max(0, bbox[1]-vpad), maxx, min(im.size[1], bbox[3]+vpad) ) )
+        for grp in page_groups:
+            for pdf in grp[idx].values():
+                bbox = ImageOps.invert(pdf.convert("L")).getbbox()
+                if bbox is None: continue # empty
+                minx = min(bbox[0], minx) if minx is not None else bbox[0]
+                maxx = max(bbox[2], maxx) if maxx is not None else bbox[2]
+                width = max(width, pdf.size[0]) if width is not None else pdf.size[0]
+            if width != None:
+                minx = max(0, minx-int(.02*width)) # add back some margins
+                maxx = min(width, maxx+int(.02*width))
+            # do crop
+            for pg in grp[idx]:
+                im = grp[idx][pg]
+                bbox = ImageOps.invert(im.convert("L")).getbbox() # .invert() requires a grayscale image
+                if bbox is None: bbox = [0, 0, im.size[0], im.size[1]] # empty page
+                vpad = int(.02*im.size[1])
+                grp[idx][pg] = im.crop( (minx, max(0, bbox[1]-vpad), maxx, min(im.size[1], bbox[3]+vpad) ) )
 
-def stack_pages(pages):
+def stack_pages(page_groups):
     # Compute the dimensions of the final image.
     height = 0
     width = [0, 0]
-    for idx in (0, 1):
-        side_height = 0
-        for pdf in pages[idx].values():
-            side_height += pdf.size[1]
-            width[idx] = max(width[idx], pdf.size[0])
-        height = max(height, side_height)
+    page_group_spacers = []
+    for grp in page_groups:
+        grp_height = [0, 0]
+        for idx in (0, 1):
+            for im in grp[idx].values():
+                grp_height[idx] += im.size[1]
+                width[idx] = max(width[idx], im.size[0])
+        page_group_spacers.append( (max(grp_height)-grp_height[0], max(grp_height)-grp_height[1])  )
+        height += max(grp_height)
+
+    # Draw image with some background lines.
+    img = Image.new("RGBA", (sum(width), height), "#F3F3F3")
+    draw = ImageDraw.Draw(img)
+    for x in range(0, sum(width), 50):
+        draw.line( (x, 0, x, img.size[1]), fill="#E3E3E3")
 
     # Paste in the page.
-    img = Image.new("RGBA", (sum(width), height))
-    draw = ImageDraw.Draw(img)
     for idx in (0, 1):
         y = 0
-        for pg in sorted(pages[idx]):
-            pgimg = pages[idx][pg]
-            img.paste(pgimg, (idx * width[0], y))
-            draw.line( (0 if idx == 0 else width[0], y, sum(width[0:idx+1]), y), fill="black")
-            y += pgimg.size[1]
+        for i, grp in enumerate(page_groups):
+            for pg in sorted(grp[idx]):
+                pgimg = grp[idx][pg]
+                img.paste(pgimg, (idx * width[0], y))
+                if pg[0] > 1 and pg[1] == 0:
+                    # Draw lines between physical pages. Since we split
+                    # pages into sub-pages, check that the sub-page index
+                    # pg[1] is the start of a logical page. Draw lines
+                    # above pages, but not on the first page pg[0] == 1.
+                    draw.line( (0 if idx == 0 else width[0], y, sum(width[0:idx+1]), y), fill="black")
+                y += pgimg.size[1]
+            y += page_group_spacers[i][idx]
 
     # Draw a vertical line between the two sides.
     draw.line( (width[0], 0, width[0], height), fill="black")
