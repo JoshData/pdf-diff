@@ -138,14 +138,39 @@ def render_changes(changes, stream):
     
     changes = simplify_changes(changes)
 
-    # Load all of the pages named in changes.
+    # Make images for all of the pages named in changes.
 
+    pages = make_pages_images(changes)
+
+    # Draw red rectangles.
+
+    draw_red_boxes(changes, pages)
+
+    # Zealous crop to make output nicer. We do this after
+    # drawing rectangles so that we don't mess up coordinates.
+
+    zealous_crop(pages)
+
+    # Stack all of the changed pages into a final PDF.
+
+    img = stack_pages(pages)
+
+    # Write it out.
+
+    img.save(stream, "PNG")
+
+
+def make_pages_images(changes):
     pages = [{}, {}]
     for change in changes:
         if change == "*": continue # not handled yet
-        if change["page"]["number"] not in pages[change["pdf"]["index"]]:
-            pages[change["pdf"]["index"]][change["page"]["number"]] = pdftopng(change["pdf"]["file"], change["page"]["number"])
+        pdf_index = change["pdf"]["index"]
+        pdf_page = change["page"]["number"]
+        if pdf_page not in pages[pdf_index]:
+            pages[pdf_index][pdf_page] = pdftopng(change["pdf"]["file"], pdf_page)
+    return pages
 
+def draw_red_boxes(changes, pages):
     # Draw red boxes around changes.
 
     for change in changes:
@@ -164,6 +189,7 @@ def render_changes(changes, stream):
         draw.rectangle(coords, outline="red")
         del draw
 
+def zealous_crop(pages):
     # Zealous crop all of the pages. Vertical margins can be cropped
     # however, but be sure to crop all pages the same horizontally.
     for idx in (0, 1):
@@ -186,8 +212,7 @@ def render_changes(changes, stream):
             vpad = int(.02*im.size[1])
             pages[idx][pg] = im.crop( (minx, max(0, bbox[1]-vpad), maxx, min(im.size[1], bbox[3]+vpad) ) )
 
-    # Stack all of the changed pages into a final PDF.
-
+def stack_pages(pages):
     # Compute the dimensions of the final image.
     height = 0
     width = [0, 0]
@@ -214,10 +239,7 @@ def render_changes(changes, stream):
 
     del draw
 
-    # Write it out.
-
-    img.save(stream, "PNG")
-
+    return img
 
 def simplify_changes(boxes):
     # Combine changed boxes when they were sequential in the input.
