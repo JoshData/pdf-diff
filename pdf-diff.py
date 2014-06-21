@@ -304,21 +304,21 @@ def zealous_crop(page_groups):
 def stack_pages(page_groups):
     # Compute the dimensions of the final image.
     height = 0
-    width = [0, 0]
+    col_width = 0
     page_group_spacers = []
     for grp in page_groups:
         grp_height = [0, 0]
         for idx in (0, 1):
             for im in grp[idx].values():
                 grp_height[idx] += im.size[1]
-                width[idx] = max(width[idx], im.size[0])
+                col_width = max(col_width, im.size[0])
         page_group_spacers.append( (max(grp_height)-grp_height[0], max(grp_height)-grp_height[1])  )
         height += max(grp_height)
 
     # Draw image with some background lines.
-    img = Image.new("RGBA", (sum(width), height), "#F3F3F3")
+    img = Image.new("RGBA", (col_width*2+1, height), "#F3F3F3")
     draw = ImageDraw.Draw(img)
-    for x in range(0, sum(width), 50):
+    for x in range(0, col_width*2+1, 50):
         draw.line( (x, 0, x, img.size[1]), fill="#E3E3E3")
 
     # Paste in the page.
@@ -327,18 +327,18 @@ def stack_pages(page_groups):
         for i, grp in enumerate(page_groups):
             for pg in sorted(grp[idx]):
                 pgimg = grp[idx][pg]
-                img.paste(pgimg, (idx * width[0], y))
+                img.paste(pgimg, (0 if idx == 0 else (col_width+1), y))
                 if pg[0] > 1 and pg[1] == 0:
                     # Draw lines between physical pages. Since we split
                     # pages into sub-pages, check that the sub-page index
                     # pg[1] is the start of a logical page. Draw lines
                     # above pages, but not on the first page pg[0] == 1.
-                    draw.line( (0 if idx == 0 else width[0], y, sum(width[0:idx+1]), y), fill="black")
+                    draw.line( (0 if idx == 0 else col_width, y, col_width, y), fill="black")
                 y += pgimg.size[1]
             y += page_group_spacers[i][idx]
 
     # Draw a vertical line between the two sides.
-    draw.line( (width[0], 0, width[0], height), fill="black")
+    draw.line( (col_width, 0, col_width, height), fill="black")
 
     del draw
 
