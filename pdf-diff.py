@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import sys, json, subprocess, io
+import sys, json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
 
@@ -296,7 +296,10 @@ def zealous_crop(page_groups):
                 bbox = ImageOps.invert(im.convert("L")).getbbox() # .invert() requires a grayscale image
                 if bbox is None: bbox = [0, 0, im.size[0], im.size[1]] # empty page
                 vpad = int(.02*im.size[1])
-                grp[idx][pg] = im.crop( (minx, max(0, bbox[1]-vpad), maxx, min(im.size[1], bbox[3]+vpad) ) )
+                im = im.crop( (0, max(0, bbox[1]-vpad), im.size[0], min(im.size[1], bbox[3]+vpad) ) )
+                if os.environ.get("HORZCROP") != "0":
+                    im = im.crop( (minx, 0, maxx, im.size[1]) )
+                grp[idx][pg] = im
 
 def stack_pages(page_groups):
     # Compute the dimensions of the final image.
