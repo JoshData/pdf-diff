@@ -303,7 +303,7 @@ def zealous_crop(page_groups):
 
 def stack_pages(page_groups):
     # Compute the dimensions of the final image.
-    height = 0
+    col_height = [0, 0]
     col_width = 0
     page_group_spacers = []
     for grp in page_groups:
@@ -312,8 +312,13 @@ def stack_pages(page_groups):
             for im in grp[idx].values():
                 grp_height[idx] += im.size[1]
                 col_width = max(col_width, im.size[0])
-        page_group_spacers.append( (max(grp_height)-grp_height[0], max(grp_height)-grp_height[1])  )
-        height += max(grp_height)
+        if abs(grp_height[0]-grp_height[1]) > 10:
+            page_group_spacers.append( (max(grp_height)-grp_height[0], max(grp_height)-grp_height[1])  )
+        else:
+            page_group_spacers.append( (0,0) )
+        col_height[0] += grp_height[0]
+        col_height[1] += grp_height[1]
+    height = max(col_height)
 
     # Draw image with some background lines.
     img = Image.new("RGBA", (col_width*2+1, height), "#F3F3F3")
