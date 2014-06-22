@@ -133,7 +133,7 @@ def mark_difference(hunk_length, offset, boxes, changes):
     changes.append(boxes.pop(0))
 
 # Turns a JSON object of PDF changes into a PNG and writes it to stream.
-def render_changes(changes, stream):
+def render_changes(changes, styles, stream):
     # Merge sequential boxes to avoid sequential disjoint rectangles.
     
     changes = simplify_changes(changes)
@@ -163,7 +163,7 @@ def render_changes(changes, stream):
 
     # Draw red rectangles.
 
-    draw_red_boxes(changes, pages)
+    draw_red_boxes(changes, pages, styles)
 
     # Zealous crop to make output nicer. We do this after
     # drawing rectangles so that we don't mess up coordinates.
@@ -255,21 +255,37 @@ def realign_pages(pages, changes):
                 page_groups.append( ({}, {}) )
     return page_groups
 
-def draw_red_boxes(changes, pages):
+def draw_red_boxes(changes, pages, styles):
     # Draw red boxes around changes.
 
     for change in changes:
         if change == "*": continue # not handled yet
 
+        # 'box', 'strike', 'underline'
+        style = styles[change["pdf"]["index"]]
+
+        # the Image of the page
         im = pages[change["pdf"]["index"]][change["page"]]
 
-        coords = (
-            change["x"], change["y"],
-            (change["x"]+change["width"]), (change["y"]+change["height"]),
-            )
-
+        # draw it
         draw = ImageDraw.Draw(im)
-        draw.rectangle(coords, outline="red")
+
+        if style == "box":
+            draw.rectangle((
+                change["x"], change["y"],
+                (change["x"]+change["width"]), (change["y"]+change["height"]),
+                ), outline="red")
+        elif style == "strike":
+            draw.line((
+                change["x"], change["y"]+change["height"]/2,
+                change["x"]+change["width"], change["y"]+change["height"]/2
+                ), fill="red")
+        elif style == "underline":
+            draw.line((
+                change["x"], change["y"]+change["height"],
+                change["x"]+change["width"], change["y"]+change["height"]
+                ), fill="red")
+
         del draw
 
 def zealous_crop(page_groups):
@@ -297,7 +313,7 @@ def zealous_crop(page_groups):
                 if bbox is None: bbox = [0, 0, im.size[0], im.size[1]] # empty page
                 vpad = int(.02*im.size[1])
                 im = im.crop( (0, max(0, bbox[1]-vpad), im.size[0], min(im.size[1], bbox[3]+vpad) ) )
-                if os.environ.get("HORZCROP") != "0":
+                if os.environ.get("HORZCROP", "1") != "0":
                     im = im.crop( (minx, 0, maxx, im.size[1]) )
                 grp[idx][pg] = im
 
@@ -307,17 +323,17 @@ def stack_pages(page_groups):
     col_width = 0
     page_group_spacers = []
     for grp in page_groups:
-        grp_height = [0, 0]
         for idx in (0, 1):
             for im in grp[idx].values():
-                grp_height[idx] += im.size[1]
+                col_height[idx] += im.size[1]
                 col_width = max(col_width, im.size[0])
-        if abs(grp_height[0]-grp_height[1]) > 10:
-            page_group_spacers.append( (max(grp_height)-grp_height[0], max(grp_height)-grp_height[1])  )
-        else:
-            page_group_spacers.append( (0,0) )
-        col_height[0] += grp_height[0]
-        col_height[1] += grp_height[1]
+
+        dy = col_height[1] - col_height[0]
+        if abs(dy) < 10: dy = 0 # don't add tiny spacers
+        page_group_spacers.append( (dy if dy > 0 else 0, -dy if dy < 0 else 0)  )
+        col_height[0] += page_group_spacers[-1][0]
+        col_height[1] += page_group_spacers[-1][1]
+
     height = max(col_height)
 
     # Draw image with some background lines.
@@ -382,8 +398,18 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if len(sys.argv) <= 1:
-        print("Usage: python3 pdf-diff.py before.pdf after.pdf > changes.png", file=sys.stderr)
+        print("Usage: python3 pdf-diff.py [--style box|strike|underline,box|strike|underline] before.pdf after.pdf > changes.png", file=sys.stderr)
         sys.exit(1)
 
-    changes = compute_changes(sys.argv[1], sys.argv[2])
-    render_changes(changes, sys.stdout.buffer)
+    args = sys.argv[1:]
+
+    styles = ["strike", "underline"]
+    if args[0] == "--style":
+        args.pop(0)
+        styles = args.pop(0).split(',')
+
+    left_file = args.pop(0)
+    right_file = args.pop(0)
+
+    changes = compute_changes(left_file, right_file)
+    render_changes(changes, styles, sys.stdout.buffer)
