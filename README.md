@@ -31,27 +31,3 @@ Turn two PDFs into one large PNG image showing the differences:
 
 	python3 pdf-diff.py before.pdf after.pdf > test.png
 
-
-Node Version
-------------
-
-There's also a node.js version for computing the changes that uses Mozilla's pdf.js instead of `pdftotext`. Getting pdf.js to work in node.js isn't straightforward:
-
-	npm install
-
-	git clone https://github.com/mozilla/pdf.js
-	cd pdf.js
-	node make singlefile
-	cd ..
-
-Compute the changes (writes a JSON file):
-
-	node index.js before.pdf after.pdf | grep -v "^Warning:" > changes.json
-
-(Unfortunately the pdf.js library prints warnings on STDOUT, so we have to filter those out.)
-
-Render the changes:
-
-	python3 pdf-diff.py --changes < changes.json > test.png
-
-`pdftotext` gives bounding boxes for each word in the document while pdf.js only gives bounding boxes for text runs, so the granularity is not as good.
