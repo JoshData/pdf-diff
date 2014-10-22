@@ -385,7 +385,7 @@ def stack_pages(page_groups):
                     # pages into sub-pages, check that the sub-page index
                     # pg[1] is the start of a logical page. Draw lines
                     # above pages, but not on the first page pg[0] == 1.
-                    draw.line( (0 if idx == 0 else col_width, y, col_width, y), fill="black")
+                    draw.line( (0 if idx == 0 else col_width, y, col_width*(idx+1), y), fill="black")
                 y += pgimg.size[1]
             y += page_group_spacers[i][idx]
 
