@@ -303,10 +303,11 @@ def zealous_crop(page_groups):
                 minx = min(bbox[0], minx) if minx is not None else bbox[0]
                 maxx = max(bbox[2], maxx) if maxx is not None else bbox[2]
                 width = max(width, pdf.size[0]) if width is not None else pdf.size[0]
-            if width != None:
-                minx = max(0, minx-int(.02*width)) # add back some margins
-                maxx = min(width, maxx+int(.02*width))
+        if width != None:
+            minx = max(0, minx-int(.02*width)) # add back some margins
+            maxx = min(width, maxx+int(.02*width))
             # do crop
+        for grp in page_groups:
             for pg in grp[idx]:
                 im = grp[idx][pg]
                 bbox = ImageOps.invert(im.convert("L")).getbbox() # .invert() requires a grayscale image
