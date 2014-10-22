@@ -4,9 +4,9 @@ import sys, json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
 
-def compute_changes(pdf_fn_1, pdf_fn_2):
+def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0):
     # Serialize the text in the two PDFs.
-    docs = [serialize_pdf(0, pdf_fn_1), serialize_pdf(1, pdf_fn_2)]
+    docs = [serialize_pdf(0, pdf_fn_1, top_margin), serialize_pdf(1, pdf_fn_2, top_margin)]
 
     # Compute differences between the serialized text.
     diff = perform_diff(docs[0][1], docs[1][1])
@@ -14,8 +14,8 @@ def compute_changes(pdf_fn_1, pdf_fn_2):
 
     return changes
 
-def serialize_pdf(i, fn):
-    box_generator = pdf_to_bboxes(i, fn)
+def serialize_pdf(i, fn, top_margin):
+    box_generator = pdf_to_bboxes(i, fn, top_margin)
     box_generator = mark_eol_hyphens(box_generator)
 
     boxes = []
@@ -45,7 +45,7 @@ def serialize_pdf(i, fn):
     text = "".join(text)
     return boxes, text
 
-def pdf_to_bboxes(pdf_index, fn):
+def pdf_to_bboxes(pdf_index, fn, top_margin=0):
     # Get the bounding boxes of text runs in the PDF.
     # Each text run is returned as a dict.
     box_index = 0
@@ -62,6 +62,9 @@ def pdf_to_bboxes(pdf_index, fn):
             "height": float(page.get("height"))
         }
         for word in page.findall("{http://www.w3.org/1999/xhtml}word"):
+            if float(word.get("yMax")) < (top_margin/100.0)*float(page.get("height")):
+                continue
+
             yield {
                 "index": box_index,
                 "pdf": pdfdict,
@@ -435,12 +438,20 @@ if __name__ == "__main__":
     args = sys.argv[1:]
 
     styles = ["strike", "underline"]
-    if args[0] == "--style":
-        args.pop(0)
-        styles = args.pop(0).split(',')
+    top_margin = 0
+    while True:
+        if args[0] == "--style":
+            args.pop(0)
+            styles = args.pop(0).split(',')
+            continue
+        if args[0] == "--top-margin":
+            args.pop(0)
+            top_margin = float(args.pop(0))
+            continue
+        break
 
     left_file = args.pop(0)
     right_file = args.pop(0)
 
-    changes = compute_changes(left_file, right_file)
+    changes = compute_changes(left_file, right_file, top_margin=top_margin)
     render_changes(changes, styles, sys.stdout.buffer)
