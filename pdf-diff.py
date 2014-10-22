@@ -15,16 +15,25 @@ def compute_changes(pdf_fn_1, pdf_fn_2):
     return changes
 
 def serialize_pdf(i, fn):
+    box_generator = pdf_to_bboxes(i, fn)
+    box_generator = mark_eol_hyphens(box_generator)
+
     boxes = []
     text = []
     textlength = 0
-    for run in pdf_to_bboxes(i, fn):
-        normalized_text = run["text"]
+    for run in box_generator:
+        normalized_text = run["text"].strip()
 
         # Ensure that each run ends with a space, since pdftotext
         # strips spaces between words. If we do a word-by-word diff,
         # that would be important.
-        normalized_text = normalized_text.strip() + " "
+        #
+        # But don't put in a space if the box ends in a discretionary
+        # hyphen. Instead, remove the hyphen.
+        if normalized_text.endswith("\u00AD"):
+            normalized_text = normalized_text[0:-1]
+        else:
+            normalized_text += " "
 
         run["text"] = normalized_text
         run["startIndex"] = textlength
@@ -64,6 +73,27 @@ def pdf_to_bboxes(pdf_index, fn):
                 "text": word.text,
                 }
             box_index += 1
+
+def mark_eol_hyphens(boxes):
+    # Replace end-of-line hyphens with discretionary hyphens so we can weed
+    # those out later. Finding the end of a line is hard.
+    box = None
+    for next_box in boxes:
+        if box is not None:
+            if box['pdf'] != next_box['pdf'] or box['page'] != next_box['page'] \
+                or next_box['y'] >= box['y'] + box['height']/2:
+                # box was at the end of a line
+                mark_eol_hyphen(box)
+            yield box
+        box = next_box
+    if box is not None:
+        # The last box is at the end of a line too.
+        mark_eol_hyphen(box)
+        yield box
+
+def mark_eol_hyphen(box):
+    if box['text'].endswith("-"):
+        box['text'] = box['text'][0:-1] + "\u00AD"
 
 def perform_diff(doc1text, doc2text):
     import diff_match_patch
