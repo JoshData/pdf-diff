@@ -421,7 +421,7 @@ def simplify_changes(boxes):
 
 # Rasterizes a page of a PDF.
 def pdftopng(pdffile, pagenumber, width=900):
-    pngbytes = subprocess.check_output(["/usr/bin/pdftoppm", "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(width), "-png", pdffile])
+    pngbytes = subprocess.check_output(["pdftoppm", "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(width), "-png", pdffile])
     im = Image.open(io.BytesIO(pngbytes))
     return im.convert("RGBA")
 

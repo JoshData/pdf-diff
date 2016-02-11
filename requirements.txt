@@ -1,0 +1,3 @@
+diff_match_patch_python
+lxml
+pillow
