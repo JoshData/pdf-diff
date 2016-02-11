@@ -1,5 +1,4 @@
-pdf-diff
-========
+# pdf-diff
 
 Finds differences between two PDF documents:
 
@@ -10,16 +9,22 @@ Finds differences between two PDF documents:
 
 The script is written in Python 3, and it relies on the `pdftotext` program.
 
-Installation
-------------
+## Installation
 
-	sudo apt-get install python3-lxml poppler-utils # on Ubuntu, at least
-	sudo pip3 install pillow lxml diff_match_patch_python
+### Ubuntu
 
-Running
--------
+    sudo apt-get install python3-lxml poppler-utils
+
+### OS X
+
+    brew install libxml2 poppler
+
+### All operating systems
+
+    sudo pip3 install -r requirements.txt
+
+## Running
 
 Turn two PDFs into one large PNG image showing the differences:
 
-	python3 pdf-diff.py before.pdf after.pdf > test.png
-
+    python3 pdf-diff.py before.pdf after.pdf > test.png
