@@ -14,6 +14,6 @@ setup(name='pdf-diff',
           'pillow',
       ],
       entry_points = {
-        'console_scripts': ['pdf-diff=pdf_diff.pdf-diff:main'],
+        'console_scripts': ['pdf-diff=pdf_diff.command_line:main'],
       },
       zip_safe=False)
