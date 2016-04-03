@@ -168,7 +168,7 @@ def mark_difference(hunk_length, offset, boxes, changes):
 # Turns a JSON object of PDF changes into a PNG and writes it to stream.
 def render_changes(changes, styles, stream):
     # Merge sequential boxes to avoid sequential disjoint rectangles.
-    
+
     changes = simplify_changes(changes)
 
     # Make images for all of the pages named in changes.
@@ -425,7 +425,7 @@ def pdftopng(pdffile, pagenumber, width=900):
     im = Image.open(io.BytesIO(pngbytes))
     return im.convert("RGBA")
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--changes":
         # to just do the rendering part
         render_changes(json.load(sys.stdin), sys.stdout.buffer)
@@ -455,3 +455,6 @@ if __name__ == "__main__":
 
     changes = compute_changes(left_file, right_file, top_margin=top_margin)
     render_changes(changes, styles, sys.stdout.buffer)
+
+if __name__ == "__main__":
+    main()
