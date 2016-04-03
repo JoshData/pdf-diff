@@ -11,7 +11,7 @@ The script is written in Python 3, and it relies on the `pdftotext` program.
 
 ## Installation
 
-    python setup.py install
+    sudo python setup.py install
 ## Running
 
 Turn two PDFs into one large PNG image showing the differences:
