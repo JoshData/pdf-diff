@@ -9,9 +9,12 @@ Finds differences between two PDF documents:
 
 The script is written in Python 3, and it relies on the `pdftotext` program.
 
+## Requirements
+    
+    libxml2, libxslt, poppler
 ## Installation
 
-    sudo python setup.py install
+    sudo python3 setup.py install
 ## Running
 
 Turn two PDFs into one large PNG image showing the differences:
