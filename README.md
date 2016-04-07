@@ -9,22 +9,20 @@ Finds differences between two PDF documents:
 
 The script is written in Python 3, and it relies on the `pdftotext` program.
 
+## Requirements
+    
+    libxml2 >= 2.7.0, libxslt >= 1.1.23, poppler
+## Requirements installation for Ubuntu:
+    
+    sudo apt-get install python3-lxml poppler-utils
+## Requirements installation for OS X:
+    
+    brew install libxml2 libxslt poppler
 ## Installation
 
-### Ubuntu
-
-    sudo apt-get install python3-lxml poppler-utils
-
-### OS X
-
-    brew install libxml2 poppler
-
-### All operating systems
-
-    sudo pip3 install -r requirements.txt
-
+    sudo python3 setup.py install
 ## Running
 
 Turn two PDFs into one large PNG image showing the differences:
 
-    python3 pdf-diff.py before.pdf after.pdf > test.png
+    pdf-diff before.pdf after.pdf > comparison_output.png
