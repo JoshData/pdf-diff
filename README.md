@@ -11,7 +11,13 @@ The script is written in Python 3, and it relies on the `pdftotext` program.
 
 ## Requirements
     
-    libxml2, libxslt, poppler
+    libxml2 >= 2.7.0, libxslt >= 1.1.23, poppler
+## Requirements installation for Ubuntu:
+    
+    sudo apt-get install python3-lxml poppler-utils
+## Requirements installation for OS X:
+    
+    brew install libxml2 libxslt poppler
 ## Installation
 
     sudo python3 setup.py install
