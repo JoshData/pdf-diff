@@ -170,6 +170,8 @@ def render_changes(changes, styles, stream):
     # Merge sequential boxes to avoid sequential disjoint rectangles.
 
     changes = simplify_changes(changes)
+    if len(changes) == 0:
+        raise Exception("There are no text differences.")
 
     # Make images for all of the pages named in changes.
 
