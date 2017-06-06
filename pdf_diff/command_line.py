@@ -165,8 +165,8 @@ def mark_difference(hunk_length, offset, boxes, changes):
     # there's no reason to hold onto it. It can't be marked as changed twice.
     changes.append(boxes.pop(0))
 
-# Turns a JSON object of PDF changes into a PNG and writes it to stream.
-def render_changes(changes, styles, stream):
+# Turns a JSON object of PDF changes into a PIL image object.
+def render_changes(changes, styles):
     # Merge sequential boxes to avoid sequential disjoint rectangles.
 
     changes = simplify_changes(changes)
@@ -209,10 +209,7 @@ def render_changes(changes, styles, stream):
 
     img = stack_pages(page_groups)
 
-    # Write it out.
-
-    img.save(stream, "PNG")
-
+    return img
 
 def make_pages_images(changes):
     pages = [{}, {}]
@@ -430,7 +427,7 @@ def pdftopng(pdffile, pagenumber, width=900):
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--changes":
         # to just do the rendering part
-        render_changes(json.load(sys.stdin), sys.stdout.buffer)
+        render_changes(json.load(sys.stdin))
         sys.exit(0)
 
     if len(sys.argv) <= 1:
@@ -456,7 +453,9 @@ def main():
     right_file = args.pop(0)
 
     changes = compute_changes(left_file, right_file, top_margin=top_margin)
-    render_changes(changes, styles, sys.stdout.buffer)
+    img = render_changes(changes, styles)
+    img.save(sys.stdout.buffer, "PNG")
+
 
 if __name__ == "__main__":
     main()
