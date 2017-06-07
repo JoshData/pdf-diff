@@ -425,35 +425,55 @@ def pdftopng(pdffile, pagenumber, width=900):
     return im.convert("RGBA")
 
 def main():
-    if len(sys.argv) == 2 and sys.argv[1] == "--changes":
-        # to just do the rendering part
-        render_changes(json.load(sys.stdin))
-        sys.exit(0)
+    import argparse
 
-    if len(sys.argv) <= 1:
-        print("Usage: python3 pdf-diff.py [--style box|strike|underline,box|strike|underline] before.pdf after.pdf > changes.png", file=sys.stderr)
+    description = ('Calculates the differences between two specified files in PDF format '
+                   '(or changes specified on standard input) and outputs to standard output '
+                   'side-by-side images with the differences marked (in PNG format).')
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('files', nargs='*', # Use '*' to allow --changes with zero files
+                        help='Calculate differences between the two named files')
+    parser.add_argument('--changes', action='store_true', default=False, 
+                        help='Read change description from standard input, ignoring files')
+    parser.add_argument('--style', metavar='box|strike|underline,box|stroke|underline', 
+                        default='strike,underline',
+                        help='How to mark the differences in the two files (default: strike, underline)')
+    parser.add_argument('--top-margin', metavar='margin', default=0., type=float,
+                        help='TODO (default 0.0)')
+    args = parser.parse_args()
+
+    # Validate style
+    style = args.style.split(',')
+    if len(style) != 2:
+        print("ERROR: Exactly two style values must be specified, if --style is used.")
+        parser.print_usage()
+        sys.exit(1)
+    for i in [0,1]:
+        if style[i] != 'box' and style[i] != 'strike' and style[i] != 'underline':
+            print("ERROR: --style values must be box, strike or underline, not %s." % (style[i]))
+            parser.print_usage()
+            sys.exit(1)
+
+    # Ensure one of files or --changes are specified
+    if len(args.files) == 0 and not args.changes:
+        print("ERROR: Please specify files to compare, or use --changes option")
+        parser.print_usage()
         sys.exit(1)
 
-    args = sys.argv[1:]
+    if args.changes:
+        # to just do the rendering part
+        img = render_changes(json.load(sys.stdin), style)
+        img.save(sys.stdout.buffer, "PNG")
+        sys.exit(0)
 
-    styles = ["strike", "underline"]
-    top_margin = 0
-    while True:
-        if args[0] == "--style":
-            args.pop(0)
-            styles = args.pop(0).split(',')
-            continue
-        if args[0] == "--top-margin":
-            args.pop(0)
-            top_margin = float(args.pop(0))
-            continue
-        break
+    # Ensure enough file are specified
+    if len(args.files) != 2:
+        print("ERROR: Insufficient number of files to compare; please supply exactly 2.")
+        parser.print_usage()
+        sys.exit(1)
 
-    left_file = args.pop(0)
-    right_file = args.pop(0)
-
-    changes = compute_changes(left_file, right_file, top_margin=top_margin)
-    img = render_changes(changes, styles)
+    changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin))
+    img = render_changes(changes, style)
     img.save(sys.stdout.buffer, "PNG")
 
 
