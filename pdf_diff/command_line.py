@@ -4,6 +4,8 @@ import sys, json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
 
+from six import int2byte
+
 def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0):
     # Serialize the text in the two PDFs.
     docs = [serialize_pdf(0, pdf_fn_1, top_margin), serialize_pdf(1, pdf_fn_2, top_margin)]
@@ -54,7 +56,15 @@ def pdf_to_bboxes(pdf_index, fn, top_margin=0):
         "file": fn,
     }
     xml = subprocess.check_output(["pdftotext", "-bbox", fn, "/dev/stdout"])
-    dom = etree.fromstring(xml)
+
+    # This avoids PCDATA errors
+    codes_to_avoid = [ 0, 1, 2, 3, 4, 5, 6, 7, 8,
+                       11, 12,
+                       14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, ]
+
+    cleaned_xml = bytes([x for x in xml if x not in codes_to_avoid])
+
+    dom = etree.fromstring(cleaned_xml)
     for i, page in enumerate(dom.findall(".//{http://www.w3.org/1999/xhtml}page")):
         pagedict = {
             "number": i+1,
