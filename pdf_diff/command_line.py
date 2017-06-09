@@ -448,6 +448,8 @@ def main():
     parser.add_argument('--style', metavar='box|strike|underline,box|stroke|underline', 
                         default='strike,underline',
                         help='How to mark the differences in the two files (default: strike, underline)')
+    parser.add_argument('--format', choices=['png','gif','jpeg','ppm','tiff'], default='png',
+                        help='Output format in which to render (default: png)')
     parser.add_argument('--top-margin', metavar='margin', default=0., type=float,
                         help='TODO (default 0.0)')
     args = parser.parse_args()
@@ -473,7 +475,7 @@ def main():
     if args.changes:
         # to just do the rendering part
         img = render_changes(json.load(sys.stdin), style)
-        img.save(sys.stdout.buffer, "PNG")
+        img.save(sys.stdout.buffer, args.format.upper())
         sys.exit(0)
 
     # Ensure enough file are specified
@@ -484,7 +486,7 @@ def main():
 
     changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin))
     img = render_changes(changes, style)
-    img.save(sys.stdout.buffer, "PNG")
+    img.save(sys.stdout.buffer, args.format.upper())
 
 
 if __name__ == "__main__":
