@@ -452,23 +452,22 @@ def main():
                         help='TODO (default 0.0)')
     args = parser.parse_args()
 
+    def invalid_usage(msg):
+        print('ERROR: %s' % (msg))
+        parser.print_usage()
+        sys.exit(1)
+
     # Validate style
     style = args.style.split(',')
     if len(style) != 2:
-        print("ERROR: Exactly two style values must be specified, if --style is used.")
-        parser.print_usage()
-        sys.exit(1)
+        invalid_usage('Exactly two style values must be specified, if --style is used.')
     for i in [0,1]:
         if style[i] != 'box' and style[i] != 'strike' and style[i] != 'underline':
-            print("ERROR: --style values must be box, strike or underline, not %s." % (style[i]))
-            parser.print_usage()
-            sys.exit(1)
+            invalid_usage('--style values must be box, strike or underline, not "%s".' % (style[i]))
 
     # Ensure one of files or --changes are specified
     if len(args.files) == 0 and not args.changes:
-        print("ERROR: Please specify files to compare, or use --changes option")
-        parser.print_usage()
-        sys.exit(1)
+        invalid_usage('Please specify files to compare, or use --changes option.')
 
     if args.changes:
         # to just do the rendering part
@@ -478,9 +477,7 @@ def main():
 
     # Ensure enough file are specified
     if len(args.files) != 2:
-        print("ERROR: Insufficient number of files to compare; please supply exactly 2.")
-        parser.print_usage()
-        sys.exit(1)
+        invalid_usage('Insufficient number of files to compare; please supply exactly 2.')
 
     changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin))
     img = render_changes(changes, style)
