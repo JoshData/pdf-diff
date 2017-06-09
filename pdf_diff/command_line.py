@@ -442,14 +442,14 @@ def main():
                    'side-by-side images with the differences marked (in PNG format).')
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('files', nargs='*', # Use '*' to allow --changes with zero files
-                        help='Calculate differences between the two named files')
+                        help='calculate differences between the two named files')
     parser.add_argument('--changes', action='store_true', default=False, 
-                        help='Read change description from standard input, ignoring files')
+                        help='read change description from standard input, ignoring files')
     parser.add_argument('--style', metavar='box|strike|underline,box|stroke|underline', 
                         default='strike,underline',
-                        help='How to mark the differences in the two files (default: strike, underline)')
+                        help='how to mark the differences in the two files (default: strike, underline)')
     parser.add_argument('--format', choices=['png','gif','jpeg','ppm','tiff'], default='png',
-                        help='Output format in which to render (default: png)')
+                        help='output format in which to render (default: png)')
     parser.add_argument('--top-margin', metavar='margin', default=0., type=float,
                         help='TODO (default 0.0)')
     args = parser.parse_args()
