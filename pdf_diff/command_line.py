@@ -1,10 +1,13 @@
 #!/usr/bin/python3
 
-import sys, json, subprocess, io, os
+import sys
+
+if sys.version_info[0] < 3:
+    sys.exit("ERROR: Python version 3+ is required.")
+
+import json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
-
-from six import int2byte
 
 def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0):
     # Serialize the text in the two PDFs.
@@ -455,8 +458,8 @@ def main():
     args = parser.parse_args()
 
     def invalid_usage(msg):
-        print('ERROR: %s' % (msg))
-        parser.print_usage()
+        sys.stderr.write('ERROR: %s%s' % (msg, os.linesep))
+        parser.print_usage(sys.stderr)
         sys.exit(1)
 
     # Validate style
