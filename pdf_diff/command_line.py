@@ -3,8 +3,7 @@
 import sys
 
 if sys.version_info[0] < 3:
-    print("ERROR: Python version 3+ is required.")
-    sys.exit(1)
+    sys.exit("ERROR: Python version 3+ is required.")
 
 import json, subprocess, io, os
 from lxml import etree
@@ -459,8 +458,8 @@ def main():
     args = parser.parse_args()
 
     def invalid_usage(msg):
-        print('ERROR: %s' % (msg))
-        parser.print_usage()
+        sys.stderr.write('ERROR: %s%s' % (msg, os.linesep))
+        parser.print_usage(sys.stderr)
         sys.exit(1)
 
     # Validate style
