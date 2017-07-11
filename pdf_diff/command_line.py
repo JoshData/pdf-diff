@@ -1,6 +1,12 @@
 #!/usr/bin/python3
 
-import sys, json, subprocess, io, os
+import sys
+
+if sys.version_info[0] < 3:
+    print("ERROR: Python version 3+ is required.")
+    sys.exit(1)
+
+import json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
 
