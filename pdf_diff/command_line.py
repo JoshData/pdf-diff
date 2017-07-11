@@ -10,8 +10,6 @@ import json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
 
-from six import int2byte
-
 def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0):
     # Serialize the text in the two PDFs.
     docs = [serialize_pdf(0, pdf_fn_1, top_margin), serialize_pdf(1, pdf_fn_2, top_margin)]
