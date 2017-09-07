@@ -9,9 +9,9 @@ import json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
 
-def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0):
+def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0, bottom_margin=100):
     # Serialize the text in the two PDFs.
-    docs = [serialize_pdf(0, pdf_fn_1, top_margin), serialize_pdf(1, pdf_fn_2, top_margin)]
+    docs = [serialize_pdf(0, pdf_fn_1, top_margin, bottom_margin), serialize_pdf(1, pdf_fn_2, top_margin, bottom_margin)]
 
     # Compute differences between the serialized text.
     diff = perform_diff(docs[0][1], docs[1][1])
@@ -19,8 +19,8 @@ def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0):
 
     return changes
 
-def serialize_pdf(i, fn, top_margin):
-    box_generator = pdf_to_bboxes(i, fn, top_margin)
+def serialize_pdf(i, fn, top_margin, bottom_margin):
+    box_generator = pdf_to_bboxes(i, fn, top_margin, bottom_margin)
     box_generator = mark_eol_hyphens(box_generator)
 
     boxes = []
@@ -50,7 +50,7 @@ def serialize_pdf(i, fn, top_margin):
     text = "".join(text)
     return boxes, text
 
-def pdf_to_bboxes(pdf_index, fn, top_margin=0):
+def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100):
     # Get the bounding boxes of text runs in the PDF.
     # Each text run is returned as a dict.
     box_index = 0
@@ -76,6 +76,8 @@ def pdf_to_bboxes(pdf_index, fn, top_margin=0):
         }
         for word in page.findall("{http://www.w3.org/1999/xhtml}word"):
             if float(word.get("yMax")) < (top_margin/100.0)*float(page.get("height")):
+                continue
+            if float(word.get("yMin")) > (bottom_margin/100.0)*float(page.get("height")):
                 continue
 
             yield {
@@ -454,7 +456,9 @@ def main():
     parser.add_argument('-f', '--format', choices=['png','gif','jpeg','ppm','tiff'], default='png',
                         help='output format in which to render (default: png)')
     parser.add_argument('-t', '--top-margin', metavar='margin', default=0., type=float,
-                        help='TODO (default 0.0)')
+                        help='top margin (ignored area) end in percent of page height (default 0.0)')
+    parser.add_argument('-b', '--bottom-margin', metavar='margin', default=100., type=float,
+                        help='bottom margin (ignored area) begin in percent of page height (default 100.0)')
     args = parser.parse_args()
 
     def invalid_usage(msg):
@@ -484,7 +488,7 @@ def main():
     if len(args.files) != 2:
         invalid_usage('Insufficient number of files to compare; please supply exactly 2.')
 
-    changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin))
+    changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin), bottom_margin=float(args.bottom_margin))
     img = render_changes(changes, style)
     img.save(sys.stdout.buffer, args.format.upper())
 
