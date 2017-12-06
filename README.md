@@ -20,6 +20,12 @@ The script is written in Python 3, and it relies on the `pdftotext` program.
     brew install libxml2 libxslt poppler
 ## Installation
 
+From PyPI:
+
+    pip install pdf-diff
+
+From source:
+
     sudo python3 setup.py install
 ## Running
 
