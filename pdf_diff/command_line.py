@@ -27,6 +27,9 @@ def serialize_pdf(i, fn, top_margin, bottom_margin):
     text = []
     textlength = 0
     for run in box_generator:
+        if run["text"] is None:
+            continue
+
         normalized_text = run["text"].strip()
 
         # Ensure that each run ends with a space, since pdftotext
