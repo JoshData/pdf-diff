@@ -184,7 +184,7 @@ def mark_difference(hunk_length, offset, boxes, changes):
     changes.append(boxes.pop(0))
 
 # Turns a JSON object of PDF changes into a PIL image object.
-def render_changes(changes, styles):
+def render_changes(changes, styles,width):
     # Merge sequential boxes to avoid sequential disjoint rectangles.
 
     changes = simplify_changes(changes)
@@ -193,7 +193,7 @@ def render_changes(changes, styles):
 
     # Make images for all of the pages named in changes.
 
-    pages = make_pages_images(changes)
+    pages = make_pages_images(changes,width)
 
     # Convert the box coordinates (PDF coordinates) into image coordinates.
     # Then set change["page"] = change["page"]["number"] so that we don't
@@ -229,14 +229,14 @@ def render_changes(changes, styles):
 
     return img
 
-def make_pages_images(changes):
+def make_pages_images(changes,width):
     pages = [{}, {}]
     for change in changes:
         if change == "*": continue # not handled yet
         pdf_index = change["pdf"]["index"]
         pdf_page = change["page"]["number"]
         if pdf_page not in pages[pdf_index]:
-            pages[pdf_index][pdf_page] = pdftopng(change["pdf"]["file"], pdf_page)
+            pages[pdf_index][pdf_page] = pdftopng(change["pdf"]["file"], pdf_page,width)
     return pages
 
 def realign_pages(pages, changes):
@@ -437,7 +437,7 @@ def simplify_changes(boxes):
     return changes
 
 # Rasterizes a page of a PDF.
-def pdftopng(pdffile, pagenumber, width=900):
+def pdftopng(pdffile, pagenumber,width):
     pngbytes = subprocess.check_output(["pdftoppm", "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(width), "-png", pdffile])
     im = Image.open(io.BytesIO(pngbytes))
     return im.convert("RGBA")
@@ -462,6 +462,8 @@ def main():
                         help='top margin (ignored area) end in percent of page height (default 0.0)')
     parser.add_argument('-b', '--bottom-margin', metavar='margin', default=100., type=float,
                         help='bottom margin (ignored area) begin in percent of page height (default 100.0)')
+    parser.add_argument('-r', '--result-width', default=900, type=int,
+                        help='width of the result image (width of image in px)')
     args = parser.parse_args()
 
     def invalid_usage(msg):
@@ -483,7 +485,7 @@ def main():
 
     if args.changes:
         # to just do the rendering part
-        img = render_changes(json.load(sys.stdin), style)
+        img = render_changes(json.load(sys.stdin), style, args.result_width)
         img.save(sys.stdout.buffer, args.format.upper())
         sys.exit(0)
 
@@ -492,7 +494,7 @@ def main():
         invalid_usage('Insufficient number of files to compare; please supply exactly 2.')
 
     changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin), bottom_margin=float(args.bottom_margin))
-    img = render_changes(changes, style)
+    img = render_changes(changes, style, args.result_width)
     img.save(sys.stdout.buffer, args.format.upper())
 
 
