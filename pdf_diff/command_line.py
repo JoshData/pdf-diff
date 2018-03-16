@@ -2,12 +2,20 @@
 
 import sys
 
+
 if sys.version_info[0] < 3:
     sys.exit("ERROR: Python version 3+ is required.")
 
 import json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
+
+import os
+import configparser
+
+config = configparser.ConfigParser()
+config.sections()
+config.read(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config.ini'))
 
 def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0, bottom_margin=100):
     # Serialize the text in the two PDFs.
@@ -61,7 +69,7 @@ def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100):
         "index": pdf_index,
         "file": fn,
     }
-    xml = subprocess.check_output(["pdftotext", "-bbox", fn, "/dev/stdout"])
+    xml = subprocess.check_output([config['SYSTEM']['pdftotext'], "-bbox", fn, "/dev/stdout"])
 
     # This avoids PCDATA errors
     codes_to_avoid = [ 0, 1, 2, 3, 4, 5, 6, 7, 8,
@@ -438,7 +446,7 @@ def simplify_changes(boxes):
 
 # Rasterizes a page of a PDF.
 def pdftopng(pdffile, pagenumber,width):
-    pngbytes = subprocess.check_output(["pdftoppm", "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(width), "-png", pdffile])
+    pngbytes = subprocess.check_output([config['SYSTEM']['pdftoppm'], "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(width), "-png", pdffile])
     im = Image.open(io.BytesIO(pngbytes))
     return im.convert("RGBA")
 
@@ -454,15 +462,15 @@ def main():
     parser.add_argument('-c', '--changes', action='store_true', default=False, 
                         help='read change description from standard input, ignoring files')
     parser.add_argument('-s', '--style', metavar='box|strike|underline,box|stroke|underline', 
-                        default='strike,underline',
+                        default=config['DEFAULTS']['style'],
                         help='how to mark the differences in the two files (default: strike, underline)')
-    parser.add_argument('-f', '--format', choices=['png','gif','jpeg','ppm','tiff'], default='png',
+    parser.add_argument('-f', '--format', choices=['png','gif','jpeg','ppm','tiff'], default=config['DEFAULTS']['format'],
                         help='output format in which to render (default: png)')
-    parser.add_argument('-t', '--top-margin', metavar='margin', default=0., type=float,
+    parser.add_argument('-t', '--top-margin', metavar='margin', default=config['DEFAULTS']['top_margin'], type=float,
                         help='top margin (ignored area) end in percent of page height (default 0.0)')
-    parser.add_argument('-b', '--bottom-margin', metavar='margin', default=100., type=float,
+    parser.add_argument('-b', '--bottom-margin', metavar='margin', default=config['DEFAULTS']['bottom_margin'], type=float,
                         help='bottom margin (ignored area) begin in percent of page height (default 100.0)')
-    parser.add_argument('-r', '--result-width', default=900, type=int,
+    parser.add_argument('-r', '--result-width', default=config['DEFAULTS']['result_resolution'], type=int,
                         help='width of the result image (width of image in px)')
     args = parser.parse_args()
 
