@@ -9,6 +9,7 @@ import json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
 
+
 def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0, bottom_margin=100):
     # Serialize the text in the two PDFs.
     docs = [serialize_pdf(0, pdf_fn_1, top_margin, bottom_margin), serialize_pdf(1, pdf_fn_2, top_margin, bottom_margin)]
@@ -61,7 +62,7 @@ def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100):
         "index": pdf_index,
         "file": fn,
     }
-    xml = subprocess.check_output(["pdftotext", "-bbox", fn, "/dev/stdout"])
+    xml = subprocess.check_output([args.pdftotext, "-bbox", fn, "/dev/stdout"])
 
     # This avoids PCDATA errors
     codes_to_avoid = [ 0, 1, 2, 3, 4, 5, 6, 7, 8,
@@ -184,7 +185,7 @@ def mark_difference(hunk_length, offset, boxes, changes):
     changes.append(boxes.pop(0))
 
 # Turns a JSON object of PDF changes into a PIL image object.
-def render_changes(changes, styles,width):
+def render_changes(changes, styles):
     # Merge sequential boxes to avoid sequential disjoint rectangles.
 
     changes = simplify_changes(changes)
@@ -193,7 +194,7 @@ def render_changes(changes, styles,width):
 
     # Make images for all of the pages named in changes.
 
-    pages = make_pages_images(changes,width)
+    pages = make_pages_images(changes)
 
     # Convert the box coordinates (PDF coordinates) into image coordinates.
     # Then set change["page"] = change["page"]["number"] so that we don't
@@ -229,14 +230,14 @@ def render_changes(changes, styles,width):
 
     return img
 
-def make_pages_images(changes,width):
+def make_pages_images(changes):
     pages = [{}, {}]
     for change in changes:
         if change == "*": continue # not handled yet
         pdf_index = change["pdf"]["index"]
         pdf_page = change["page"]["number"]
         if pdf_page not in pages[pdf_index]:
-            pages[pdf_index][pdf_page] = pdftopng(change["pdf"]["file"], pdf_page,width)
+            pages[pdf_index][pdf_page] = pdftopng(change["pdf"]["file"], pdf_page)
     return pages
 
 def realign_pages(pages, changes):
@@ -437,8 +438,8 @@ def simplify_changes(boxes):
     return changes
 
 # Rasterizes a page of a PDF.
-def pdftopng(pdffile, pagenumber,width):
-    pngbytes = subprocess.check_output(["pdftoppm", "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(width), "-png", pdffile])
+def pdftopng(pdffile, pagenumber):
+    pngbytes = subprocess.check_output([args.pdftoppm, "-f", str(pagenumber), "-l", str(pagenumber), "-scale-to", str(args.result_width), "-png", pdffile])
     im = Image.open(io.BytesIO(pngbytes))
     return im.convert("RGBA")
 
@@ -464,6 +465,11 @@ def main():
                         help='bottom margin (ignored area) begin in percent of page height (default 100.0)')
     parser.add_argument('-r', '--result-width', default=900, type=int,
                         help='width of the result image (width of image in px)')
+    parser.add_argument('--pdftotext', default='pdftotext', 
+                        help='location of the pdftotext (from poppler-utils)')
+    parser.add_argument('--pdftoppm', default='pdftoppm', 
+                        help='location of the pdftoppm (from poppler-utils)')
+    global args
     args = parser.parse_args()
 
     def invalid_usage(msg):
@@ -485,7 +491,7 @@ def main():
 
     if args.changes:
         # to just do the rendering part
-        img = render_changes(json.load(sys.stdin), style, args.result_width)
+        img = render_changes(json.load(sys.stdin), style)
         img.save(sys.stdout.buffer, args.format.upper())
         sys.exit(0)
 
@@ -494,7 +500,7 @@ def main():
         invalid_usage('Insufficient number of files to compare; please supply exactly 2.')
 
     changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin), bottom_margin=float(args.bottom_margin))
-    img = render_changes(changes, style, args.result_width)
+    img = render_changes(changes, style)
     img.save(sys.stdout.buffer, args.format.upper())
 
 
