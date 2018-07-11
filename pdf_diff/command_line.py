@@ -113,8 +113,9 @@ def mark_eol_hyphens(boxes):
         yield box
 
 def mark_eol_hyphen(box):
-    if box['text'].endswith("-"):
-        box['text'] = box['text'][0:-1] + "\u00AD"
+	if box['text'] is not None:
+	    if box['text'].endswith("-"):
+        	box['text'] = box['text'][0:-1] + "\u00AD"
 
 def perform_diff(doc1text, doc2text):
     import diff_match_patch
