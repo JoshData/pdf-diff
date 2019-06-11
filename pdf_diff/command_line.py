@@ -61,7 +61,7 @@ def pdf_to_bboxes(pdf_index, fn, top_margin=0, bottom_margin=100):
         "index": pdf_index,
         "file": fn,
     }
-    xml = subprocess.check_output(["pdftotext", "-bbox", fn, "/dev/stdout"])
+    xml = subprocess.check_output(["pdftotext", "-bbox", fn, "-"])
 
     # This avoids PCDATA errors
     codes_to_avoid = [ 0, 1, 2, 3, 4, 5, 6, 7, 8,
