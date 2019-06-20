@@ -32,3 +32,11 @@ From source:
 Turn two PDFs into one large PNG image showing the differences:
 
     pdf-diff before.pdf after.pdf > comparison_output.png
+
+## Maintainer Notes
+
+To deploy:
+
+	python3 -m pip install --user --upgrade setuptools wheel twine
+	python3 setup.py sdist bdist_wheel
+	python3 -m twine upload dist/*

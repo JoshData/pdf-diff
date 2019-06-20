@@ -1,8 +1,10 @@
 from setuptools import setup, find_packages
 
 setup(name='pdf-diff',
-      version='0.9.0',
+      version='0.9.1',
       description='Finds differences between two PDF documents',
+      long_description=open("README.md").read(),
+      long_description_content_type="text/markdown",
       url='https://github.com/JoshData/pdf-diff',
       author=u'Joshua Tauberer',
       author_email=u'jt@occams.info',
