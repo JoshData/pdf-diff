@@ -194,39 +194,6 @@ def render_changes_PDF(changes, styles, annotators):
     if len(changes) == 0:
         raise Exception("There are no text differences.")
 
-
-    #     def draw_red_boxes(changes, pages, styles):
-    # # Draw red boxes around changes.
-
-    # for change in changes:
-    #     if change == "*": continue # not handled yet
-
-    #     # 'box', 'strike', 'underline'
-    #     style = styles[change["pdf"]["index"]]
-
-    #     # the Image of the page
-    #     im = pages[change["pdf"]["index"]][change["page"]]
-
-    #     # draw it
-    #     draw = ImageDraw.Draw(im)
-
-    #     if style == "box":
-    #         draw.rectangle((
-    #             change["x"], change["y"],
-    #             (change["x"]+change["width"]), (change["y"]+change["height"]),
-    #             ), outline="red")
-    #     elif style == "strike":
-    #         draw.line((
-    #             change["x"], change["y"]+change["height"]/2,
-    #             change["x"]+change["width"], change["y"]+change["height"]/2
-    #             ), fill="red")
-    #     elif style == "underline":
-    #         draw.line((
-    #             change["x"], change["y"]+change["height"],
-    #             change["x"]+change["width"], change["y"]+change["height"]
-    #             ), fill="red")
-
-
     for change in changes:
         if change == "*": continue
 
