@@ -8,6 +8,8 @@ if sys.version_info[0] < 3:
 import json, subprocess, io, os
 from lxml import etree
 from PIL import Image, ImageDraw, ImageOps
+from pdf_annotate import PdfAnnotator, Location, Appearance
+
 
 def compute_changes(pdf_fn_1, pdf_fn_2, top_margin=0, bottom_margin=100):
     # Serialize the text in the two PDFs.
@@ -183,6 +185,52 @@ def mark_difference(hunk_length, offset, boxes, changes):
     # Mark this box as changed. Discard the box. Now that we know it's changed,
     # there's no reason to hold onto it. It can't be marked as changed twice.
     changes.append(boxes.pop(0))
+
+
+# Turns the JSON objects of PDF changes into annotations into the source PDFs
+def render_changes_PDF(changes, styles, annotators):
+
+    changes = simplify_changes(changes)
+    if len(changes) == 0:
+        raise Exception("There are no text differences.")
+
+    for change in changes:
+        if change == "*": continue
+
+        style = styles[change["pdf"]["index"]]
+
+        if style == "box":
+            annotators[change["pdf"]["index"]].add_annotation(
+                'square',
+                Location(x1=change["x"], 
+                y1 = change["page"]["height"] - change["y"],
+                x2 = change["width"] + change["x"],
+                y2 = change["page"]["height"] - (change["height"] + change["y"]),
+                page = change["page"]["number"]-1),
+                Appearance(stroke_color=(1, 0, 0), stroke_width=1))
+
+        elif style == "strike":
+            annotators[change["pdf"]["index"]].add_annotation(
+                'square',
+                Location(x1=change["x"], 
+                y1 = change["page"]["height"] - (change["y"] +change["height"]/2),
+                x2 = change["width"] + change["x"],
+                y2 = change["page"]["height"] - (change["height"]/2 + change["y"]),
+                page = change["page"]["number"]-1),
+                Appearance(stroke_color=(1, 0, 0), stroke_width=1))
+
+        elif style == "underline":
+            annotators[change["pdf"]["index"]].add_annotation(
+                'square',
+                Location(x1=change["x"], 
+                y1 = change["page"]["height"] - (change["y"] +change["height"]),
+                x2 = change["width"] + change["x"],
+                y2 = change["page"]["height"] - (change["height"] + change["y"]),
+                page = change["page"]["number"]-1),
+                Appearance(stroke_color=(1, 0, 0), stroke_width=1))
+
+
+        
 
 # Turns a JSON object of PDF changes into a PIL image object.
 def render_changes(changes, styles,width):
@@ -465,6 +513,8 @@ def main():
                         help='bottom margin (ignored area) begin in percent of page height (default 100.0)')
     parser.add_argument('-r', '--result-width', default=900, type=int,
                         help='width of the result image (width of image in px)')
+    parser.add_argument('-p', '--pdfoutput', action='store_true', default=False,
+                        help='ouput the changes as annotations directly in the input PDFs (default:False)')
     args = parser.parse_args()
 
     def invalid_usage(msg):
@@ -495,8 +545,16 @@ def main():
         invalid_usage('Insufficient number of files to compare; please supply exactly 2.')
 
     changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin), bottom_margin=float(args.bottom_margin))
-    img = render_changes(changes, style, args.result_width)
-    img.save(sys.stdout.buffer, args.format.upper())
+
+    
+    if args.pdfoutput:
+        annotators = [PdfAnnotator(args.files[0]),PdfAnnotator(args.files[1])]
+        out = render_changes_PDF(changes, style, annotators)
+        annotators[0].write('output1.pdf')
+        annotators[1].write('output2.pdf')
+    else:
+        img = render_changes(changes, style, args.result_width)
+        img.save(sys.stdout.buffer, args.format.upper())
 
 
 if __name__ == "__main__":
