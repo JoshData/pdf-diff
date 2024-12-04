@@ -2,8 +2,8 @@
 
 import sys
 
-if sys.version_info[0] < 3:
-    sys.exit("ERROR: Python version 3+ is required.")
+if sys.version_info[0] < 3 or sys.version_info[1] < 6:
+    sys.exit("ERROR: Python version 3.6+ is required.")
 
 import json, subprocess, io, os
 from lxml import etree
@@ -118,10 +118,9 @@ def mark_eol_hyphen(box):
         	box['text'] = box['text'][0:-1] + "\u00AD"
 
 def perform_diff(doc1text, doc2text):
-    import diff_match_patch
-    return diff_match_patch.diff(
-        doc1text,
-        doc2text,
+    from fast_diff_match_patch import diff
+    return diff(doc1text,
+        doc2text,   
         timelimit=0,
         checklines=False)
 
@@ -454,7 +453,8 @@ def main():
                         help='calculate differences between the two named files')
     parser.add_argument('-c', '--changes', action='store_true', default=False, 
                         help='read change description from standard input, ignoring files')
-    parser.add_argument('-s', '--style', metavar='box|strike|underline,box|stroke|underline', 
+    parser.add_argument('-s', '--style
+                        ', metavar='box|strike|underline,box|stroke|underline', 
                         default='strike,underline',
                         help='how to mark the differences in the two files (default: strike, underline)')
     parser.add_argument('-f', '--format', choices=['png','gif','jpeg','ppm','tiff'], default='png',
