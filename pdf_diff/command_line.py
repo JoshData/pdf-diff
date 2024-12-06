@@ -453,8 +453,7 @@ def main():
                         help='calculate differences between the two named files')
     parser.add_argument('-c', '--changes', action='store_true', default=False, 
                         help='read change description from standard input, ignoring files')
-    parser.add_argument('-s', '--style
-                        ', metavar='box|strike|underline,box|stroke|underline', 
+    parser.add_argument('-s', '--style', metavar='box|strike|underline,box|stroke|underline', 
                         default='strike,underline',
                         help='how to mark the differences in the two files (default: strike, underline)')
     parser.add_argument('-f', '--format', choices=['png','gif','jpeg','ppm','tiff'], default='png',
