@@ -494,6 +494,9 @@ def main():
         invalid_usage('Insufficient number of files to compare; please supply exactly 2.')
 
     changes = compute_changes(args.files[0], args.files[1], top_margin=float(args.top_margin), bottom_margin=float(args.bottom_margin))
+    if not [change for change in changes if change != '*']:
+        sys.stderr.write('No differences found.\n')
+        sys.exit(0)
     img = render_changes(changes, style, args.result_width)
     img.save(sys.stdout.buffer, args.format.upper())
 
